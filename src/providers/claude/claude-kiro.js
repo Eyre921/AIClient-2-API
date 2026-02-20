@@ -39,6 +39,7 @@ const KIRO_CONSTANTS = {
     CHAT_TRIGGER_TYPE_MANUAL: 'MANUAL',
     ORIGIN_AI_EDITOR: 'AI_EDITOR',
     TOTAL_CONTEXT_TOKENS: 172500, // 总上下文 173k tokens
+    MAX_REQUEST_BODY_BYTES: 533958, // 实测上限 ~593KB，留 10% 安全边距
 };
 
 // 从 provider-models.js 获取支持的模型列表
@@ -1334,6 +1335,20 @@ async saveCredentialsToFile(filePath, newData) {
         }
 
         request.conversationState.currentMessage.userInputMessage = userInputMessage;
+
+        // 截断 history，确保整个请求体不超过实测上限
+        if (request.conversationState.history && request.conversationState.history.length > 0) {
+            while (request.conversationState.history.length > 0) {
+                const bodySize = Buffer.byteLength(JSON.stringify(request));
+                if (bodySize <= KIRO_CONSTANTS.MAX_REQUEST_BODY_BYTES) break;
+                // 从最旧的消息开始丢弃（成对丢弃：user + assistant）
+                request.conversationState.history.shift();
+            }
+            if (request.conversationState.history.length === 0) {
+                delete request.conversationState.history;
+            }
+            logger.debug(`[Kiro] Request body after truncation: ${Buffer.byteLength(JSON.stringify(request))} bytes`);
+        }
 
         if (this.authMethod === KIRO_CONSTANTS.AUTH_METHOD_SOCIAL) {
             request.profileArn = this.profileArn;
