@@ -39,7 +39,7 @@ const KIRO_CONSTANTS = {
     CHAT_TRIGGER_TYPE_MANUAL: 'MANUAL',
     ORIGIN_AI_EDITOR: 'AI_EDITOR',
     TOTAL_CONTEXT_TOKENS: 172500, // 总上下文 173k tokens
-    MAX_REQUEST_BODY_BYTES: 533958, // 实测上限 ~593KB，留 10% 安全边距
+    MAX_REQUEST_BODY_BYTES: 409600, // 实测 457KB 仍触发 400，保守设为 400KB
 };
 
 // 从 provider-models.js 获取支持的模型列表
