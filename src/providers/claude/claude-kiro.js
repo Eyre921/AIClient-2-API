@@ -39,7 +39,7 @@ const KIRO_CONSTANTS = {
     CHAT_TRIGGER_TYPE_MANUAL: 'MANUAL',
     ORIGIN_AI_EDITOR: 'AI_EDITOR',
     TOTAL_CONTEXT_TOKENS: 172500, // 总上下文 173k tokens
-    MAX_REQUEST_BODY_BYTES: 409600, // 实测 457KB 仍触发 400，保守设为 400KB
+    MAX_HISTORY_CHARS: 200000, // history 部分字符数上限，约 80K tokens（兼容中文）
 };
 
 // 从 provider-models.js 获取支持的模型列表
@@ -1336,18 +1336,18 @@ async saveCredentialsToFile(filePath, newData) {
 
         request.conversationState.currentMessage.userInputMessage = userInputMessage;
 
-        // 截断 history，确保整个请求体不超过实测上限
+        // 截断 history，确保字符数不超过上限（用字符数而非字节数，兼容中文等多字节内容）
         if (request.conversationState.history && request.conversationState.history.length > 0) {
             while (request.conversationState.history.length > 0) {
-                const bodySize = Buffer.byteLength(JSON.stringify(request));
-                if (bodySize <= KIRO_CONSTANTS.MAX_REQUEST_BODY_BYTES) break;
-                // 从最旧的消息开始丢弃（成对丢弃：user + assistant）
+                const historyChars = JSON.stringify(request.conversationState.history).length;
+                if (historyChars <= KIRO_CONSTANTS.MAX_HISTORY_CHARS) break;
+                // 从最旧的消息开始丢弃
                 request.conversationState.history.shift();
             }
             if (request.conversationState.history.length === 0) {
                 delete request.conversationState.history;
             }
-            logger.debug(`[Kiro] Request body after truncation: ${Buffer.byteLength(JSON.stringify(request))} bytes`);
+            logger.debug(`[Kiro] History chars after truncation: ${JSON.stringify(request.conversationState.history || []).length}`);
         }
 
         if (this.authMethod === KIRO_CONSTANTS.AUTH_METHOD_SOCIAL) {
